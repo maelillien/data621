@@ -1,0 +1,20 @@
+---
+title: "template"
+author: "Mael Illien"
+date: "9/25/2019"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cerulean
+    highlight: pygments
+    css: ./lab.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+    * Generalized Least Squares
+    * Autoreggressive model
+

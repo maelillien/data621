@@ -1,0 +1,31 @@
+---
+title: "template"
+author: "Mael Illien"
+date: "9/25/2019"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cerulean
+    highlight: pygments
+    css: ./lab.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+    * A paramount concern in agriculture is maximizing crop production and regression analysis can be used to assist in solving that problem in a number of ways.
+        * What are the environmental and meteorological factors that influence crop yield?
+        * Given meteorological and/or environmental/spatial information about a crop area during the ongoing growing season, can we predict the crop’s yield for that year?
+        * Predict crop loss due to inclement weather?
+    * Both questions can be answered using a multiple regression model with a continuous response variable (yield in unit qty) and a combination of continuous and discrete predictor variables. From the variety of factors that may impact a crop’s yield, there are a number of sensible predictors that may affect yield such as:
+        * Location (are particular regions of the world more or less productive), 
+        * Low, average, high temperatures for individual months or growing periods (growth, bloom, seed)
+            * From there we can derive variables such as: occurrence of frost, occurence of overheating
+        * Precipitation data
+            * From which we can determine if there is drought, or hail?
+    * This situation lends itself to Linear Modeling using multiple regression with continuous and discrete variables
+    * Explanation: 1 degree rise in temperature = 25% raise
+    * Prediction: 
+
