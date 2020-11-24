@@ -73,19 +73,23 @@ lm.1 <- lm(totalprojectcost ~ gea, data = data)
 summary(lm.1)
 ```
 
+```{r}
+lm.1a <- lm(log(totalprojectcost) ~ log(gea), data = data)
+summary(lm.1a)
+```
 
 ```{r}
-lm.2 <- lm(totalprojectcost ~ gea + numapt + avgsfperapt + dolpersf + dolperapt, data = data)
+lm.2 <- lm(log(totalprojectcost) ~ log(gea) + numapt + avgsfperapt + dolpersf + dolperapt, data = data)
 summary(lm.2)
 ```
 
 ```{r}
-plot(totalprojectcost ~ gea, data=data)
-abline(lm.1)
+plot(log(totalprojectcost) ~ log(gea), data=data)
+abline(lm.1a)
 ```
 
 ```{r}
-plot(resid(lm.1) ~ gea, data=data)
+plot(resid(lm.1a) ~ log(gea), data=data)
 ```
 
 ```{r}
@@ -96,6 +100,11 @@ plot(resid(lm.2) ~ fitted(lm.2), data=data)
 ```{r}
 lm.3 <- lm(totalprojectcost ~ log(gea) + numapt + avgsfperapt + dolpersf + dolperapt, data = data)
 summary(lm.3)
+```
+
+```{r}
+lm.4 <- lm(totalprojectcost ~ log(gea) + dolpersf, data = data)
+summary(lm.4)
 ```
 
 ```{r}
