@@ -1,5 +1,5 @@
 ---
-title: "DATA621 Blog1"
+title: "DATA621 Blog 1"
 author: "Mael Illien"
 date: "11/8/2020"
 output:
@@ -8,19 +8,21 @@ output:
     toc_float: true
     theme: cerulean
     highlight: pygments
-    css: ./lab.css
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Simple Linear Regression
+
 ## Introduction 
 
-    * One of the most important aspects of the design of a construction project is the budget. When assembling a budget, cost estimates for the major trade are often provided by contractors based on the information available. Estimating these costs involves extracting quantities of materials from plans and determining how many manhours are required to build. This is a detailed exercise and a time consuming process that requires outside information (contractor pricing). For this reason, a linear regression model might be a very useful tool in predicting the budget for a new building. 
-    * Given that a number of trade costs can be broken down to a price per unit per trade, for example $x/square foot of concrete or $y/apartment for electrical wiring, it seems natural to turn to linear regression to predict the cost of a construction project based on these variables. While, the predictors can be detailed and derived for each trade (superstucture, mechanical, plumbing, etc.), it may be time-saving to use more general predictors for the project such as building area in SF, landscape area in SF, facade area in SF number of apartments, number of rooms, average area footprint of a floor etc.
+One of the most important aspects of the design of a construction project is the budget. When assembling a budget, cost estimates for the major trade are often provided by contractors based on the information available. Estimating these costs involves extracting quantities of materials from plans and determining how many manhours are required to build. This is a detailed exercise and a time consuming process that requires outside information (contractor pricing). For this reason, a linear regression model might be a very useful tool in predicting the budget for a new building using information from previous projects.
 
+Given that a number of trade costs can be broken down to a price per unit per trade, for example `$x/square foot` of concrete or `$y/apartment` for electrical wiring, it seems natural to turn to linear regression to predict the cost of a construction project based on these variables. While, the predictors can be detailed and derived for each trade (superstucture, mechanical, plumbing, etc.), it may be time-saving to use more general predictors for the project such as building area in SF, landscape area in SF, facade area in SF number of apartments, number of rooms, average area footprint of a floor etc.
 
+The table below contains some typical project cost information. The variable `gea` refers to gross enclosed area which is one of the area measures describing the size of a building.   
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse) #readr, dplyr, tidyr, stringr, tibble, ggplot2
@@ -39,14 +41,11 @@ showtable <- function(data, title) {
 }
 ```
 
+## Data Exploration
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-costreport <- read_csv("costreportsummary.csv")
+costreport <- read_csv("costreportsummary.csv") %>% select(-X1)
 ```
-
-```{r echo=FALSE}
-showtable(costreport, title="")
-```
-
 
 ```{r}
 data <- costreport %>% select(gea:totaltradecost)
@@ -68,46 +67,48 @@ data %>%
   facet_wrap(~key, scales = 'free')
 ```
 
+
+```{r echo=FALSE}
+
+ggplot(data, aes(x=gea, y=totalprojectcost)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  scale_x_continuous(breaks=seq(0,1500000,250000), labels=function(x) format(x, big.mark = ",",scientific = FALSE)) +
+  scale_y_continuous(breaks=seq(0,600000000,50000000), labels=function(x) format(x, big.mark = ",",scientific = FALSE)) +
+  labs(title="Project Cost per SF", x="GEA", y = "Total Project Cost, $")
+```
+
+## Modeling
+
+The full model includes yields a high R-squared of 95% however, none of the predictors are significant. It should also be noted that the predictors `dolpersf` and `dolperapt` are actually variables calculated from the known `totalprojectcost` of previous projects. This is not information that would be available for the prediction, in fact it is what we are trying to predict therefore these variables should be dropped.
+
 ```{r}
-lm.1 <- lm(totalprojectcost ~ gea, data = data)
-summary(lm.1)
+lm.full <- lm(totalprojectcost ~ gea + numapt + avgsfperapt + dolpersf + dolperapt, data = data)
+summary(lm.full)
 ```
 
 ```{r}
-lm.1a <- lm(log(totalprojectcost) ~ log(gea), data = data)
+lm.relevant <- lm(totalprojectcost ~ gea + numapt + avgsfperapt, data = data)
+summary(lm.relevant)
+```
+
+The model above makes use of the variables as they are but we that none of the predictors are significant. We note that the range in `gea` and `totalprojectcost` is quite extensive and larger project can be expected to be more expensive as roof and amenity area size grows. For this reason, it may be justified to use a log transformation on these variables.
+
+The summary below reveals an increase in R-squared (or percentage of variance explained) to nearly 77%. However only the intercept is significant. Since we are only dealing with a few predictors, we should proceed by dropping the predictors that we expect to contain the least information. Area (gea) is believed to be more important than `numapt` and `avgsfperapt` is simply derived from the existing variables so it is dropped as well.
+
+```{r}
+lm.1a <- lm(log(totalprojectcost) ~ log(gea)+numapt+avgsfperapt, data = data)
 summary(lm.1a)
 ```
 
-```{r}
-lm.2 <- lm(log(totalprojectcost) ~ log(gea) + numapt + avgsfperapt + dolpersf + dolperapt, data = data)
-summary(lm.2)
-```
+We end up with a statistically significant model with predictor `log(gea)` with coefficient 0.965. Since both the independent and dependent variables were transformed we can interpret the coefficient as follows: for every 1% increase in `gea`,`totalprojectcost` also increases by nearly a percent (0.965%). For every 10% increase in `gea`, the project costs increases by ((1.10)^0.965-1)*100 = 9.63 %
 
 ```{r}
-plot(log(totalprojectcost) ~ log(gea), data=data)
-abline(lm.1a)
+lm.1b <- lm(log(totalprojectcost) ~ log(gea), data = data)
+summary(lm.1b)
 ```
 
-```{r}
-plot(resid(lm.1a) ~ log(gea), data=data)
-```
-
-```{r}
-plot(resid(lm.2) ~ fitted(lm.2), data=data)
-```
+The information that can be derived from this kind of data could be of great value for developers. In this example, we derived some basic insight from a simple linear regression model useful for explanation purposes. Augmenting the data with more predictors would allow buiding more advanced models which could further be used in prediction.
 
 
-```{r}
-lm.3 <- lm(totalprojectcost ~ log(gea) + numapt + avgsfperapt + dolpersf + dolperapt, data = data)
-summary(lm.3)
-```
-
-```{r}
-lm.4 <- lm(totalprojectcost ~ log(gea) + dolpersf, data = data)
-summary(lm.4)
-```
-
-```{r}
-predict(lm.1, c(830000))
-```
 
