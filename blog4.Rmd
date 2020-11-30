@@ -1,20 +1,23 @@
 ---
 title: "template"
 author: "Mael Illien"
-date: "9/25/2019"
+date: "11/30/2020"
 output:
   html_document:
     toc: true
     toc_float: true
     theme: cerulean
     highlight: pygments
-    css: ./lab.css
+
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-    * It is natural in finance and investing to try to predict the price of an asset on the following day. There are a number of indicators such as the Relative Strength Index (RSI) or the Moving Average Convergence Divergence (MACD) which are derived from the pricing or volume data. Can these indicator values at time t be used to predict a value at time t+1? With a logistic regression, we can model the probabilities of a price movement and predict whether the price will go up (1) or down (0).
-    * Logistic regression explanation
+It is natural in finance and investing to try to predict the price of an asset on the following day. In order to do so, investors and traders can use a variety of tools such as fundamental analysis (based on company data), price action (based only on the price itself) and technical indicators like the Relative Strength Index (RSI) or the Moving Average Convergence Divergence (MACD), which are derived from price and/or volume data. The strategies derived from financial analysis can be applied to varying time scale horizons, short-term or long-term depending on the trader's risk apetite. 
+
+In this post, we will look at a short term horizon and see if price and technical indicator values at time t can be used to predict a value at time t+1. With a logistic regression, we can model the probabilities of a price movement and predict whether the price will go up (1) or down (0).
+
+Logistic regression explanation
 
