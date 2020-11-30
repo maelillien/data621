@@ -14,12 +14,26 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Sports generate multitudes of data. Sports data analysis is useful not only for coaches trying to understand the relative strength or weakness of teams, but also for avid betters around the world looking for an edge. Given the popularity of fantasy sports and betting sites, regression might provide a valuable tool in decising making.
+Sports generate multitudes of data. Sports data analysis is useful not only for coaches trying to understand the relative strength or weakness of teams, but also for avid betters around the world looking for an edge. Given the popularity of fantasy sports and betting sites, regression might provide a valuable tool in predicting outcomes for decison making.
 
-Sports betting is big. Fantasy sports are big. There are a number of things you can bet on such as ...
-        * Source?
+Depending on the sport in question, there are a variety of events that bets could be placed on. These events could be simple (team A will beat team B), or more granular (the score between team A and team B will be 3-0) or even more refined (there will be 3 corner kicks in a game, there will exactly 1 red card, at least 2 goals will be score by any team in the first half of a game). The refined examples can get pretty specific and domain knowledge might go a long way in creating and selecting appropriate predictors. 
 
-One of the simplest bets to place is whether or not a team will win. Winning is determined by scoring more points than the other team. Goals or baskets scored are effectively a count.  This suggests that we should work with a count data model such as Poisson.
-    * Poisson uses a log link function to.,
-        * Log link etc.  
+As mentioned above, one of the simplest bets to place is whether or not a team will win. Winning is determined by scoring more points than the other team. Goals or baskets scored are effectively a count.  This suggests that we should work with a count data model such as Poisson. The Poisson distribution describes the probability of a number of events within a specific time period. It is described by a unique parameter, $\lambda$ which represents the rate (average number of goals) of occurence. 
+
+Build a model with toy data. 
+
+Poisson Plot with home and away 1.6 home, 1.2 away
+
+We can now estimate the probability of events like scoring at least two goals at home or the probability of a draw.
+
+Note, Skellam
+
+Build GLM
+
+Interpret Matrix
+
+
+
+
+        
 
