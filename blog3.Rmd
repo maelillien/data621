@@ -20,9 +20,11 @@ Depending on the sport in question, there are a variety of events that bets coul
 
 As mentioned above, one of the simplest bets to place is whether or not a team will win. Winning is determined by scoring more points than the other team. Goals or baskets scored are effectively a count.  This suggests that we should work with a count data model such as Poisson. The Poisson distribution describes the probability of a number of events within a specific time period. It is described by a unique parameter, $\lambda$ which represents the rate (average number of goals) of occurence. 
 
+Get data for a season and plot Poisson for home and away goals
 Build a model with toy data. 
-
 Poisson Plot with home and away 1.6 home, 1.2 away
+
+Build dataframe for modeling (goals_home, team_home, opponent, home)
 
 We can now estimate the probability of events like scoring at least two goals at home or the probability of a draw.
 
