@@ -14,6 +14,11 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(tidyverse)
+```
+
+
 Sports generate multitudes of data. Sports data analysis is useful not only for coaches trying to understand the relative strength or weakness of teams, but also for avid betters around the world looking for an edge. Given the popularity of fantasy sports and betting sites, regression might provide a valuable tool in predicting outcomes for decison making.
 
 Depending on the sport in question, there are a variety of events that bets could be placed on. These events could be simple (team A will beat team B), or more granular (the score between team A and team B will be 3-0) or even more refined (there will be 3 corner kicks in a game, there will exactly 1 red card, at least 2 goals will be score by any team in the first half of a game). The refined examples can get pretty specific and domain knowledge might go a long way in creating and selecting appropriate predictors. 
@@ -34,8 +39,150 @@ Build GLM
 
 Interpret Matrix
 
+```{r}
+#devtools::install_github("dashee87/footballR") you may need to install footballR
+library(footballR)
+library(dplyr)
+#you'll have to wait to find out the purpose of this mysterious package
+#library(skellam)
+library(ggplot2)
+library(purrr)
+library(tidyr)
+# abettor is an R wrapper for the Betfair API, 
+# which we'll use to obtain betting odds
+#devtools::install_github("phillc73/abettor")
+#library(abettor)
+library(RCurl)
+
+options(stringsAsFactors = FALSE)
+
+# get id for 2016/17 EPL season
+epl_id <- fdo_listComps(season = 2016,response = "minified") %>% filter(league=="PL") %>% .$id
+# get all matches in 2016/17 EPL season
+epl_data <- fdo_listCompFixtures(id = epl_id, response = "minified")$fixtures %>%
+  jsonlite::flatten() %>% filter(status=="FINISHED") %>%
+  rename(home=homeTeamName, away=awayTeamName, homeGoals=result.goalsHomeTeam,
+         awayGoals=result.goalsAwayTeam) %>%
+  select(home,away,homeGoals,awayGoals) %>%
+# some formatting of team names so that the names returned by footballR are
+# compatible with those returned by the Betfair API
+  mutate(home=gsub(" FC| AFC|AFC |wich Albion|rystal| Hotspur","",home)) %>% 
+  mutate(home=ifelse(home=="Manchester United","Man Utd",
+                     ifelse(home=="Manchester City","Man City",
+                            gsub(" City| United","",home)))) %>%
+  mutate(away=gsub(" FC| AFC|AFC |wich Albion|rystal| Hotspur","",away)) %>% 
+  mutate(away=ifelse(away=="Manchester United","Man Utd",
+                             ifelse(away=="Manchester City","Man City",
+                                    gsub(" City| United","",away))))
+head(epl_data)
+```
 
 
+```{r}
+library("httr")
+
+matches = GET("https://api.football-data.org/v2/competitions/PL/matches?season=2018",
+              add_headers("X-Auth-Token"="4359d0669bcf4327995aca681e9cf9e2")
+          )
+          
+m <- content(matches, "parse")
+```
 
         
+```{r}
+epl_data <- data.frame()
 
+for (match in m$matches) {
+  home <- match$homeTeam$name
+  away <- match$awayTeam$name
+  homeGoals <- match$score$fullTime$homeTeam
+  awayGoals <- match$score$fullTime$awayTeam
+
+  epl_data <- rbind(df, data.frame(home=home, away=away, homegoals=homeGoals, awaygoals=awayGoals))
+}
+
+epl_data
+```
+
+```{r}
+lambdas <- data.frame(avg_home_goals = mean(epl_data$homegoals), avg_away_goals = mean(epl_data$awaygoals))
+lambdas
+```
+
+
+```{r}
+bind_rows(list(
+  epl_data %>% group_by(homegoals) %>% summarize(actual=n()/nrow(.)) %>% 
+    mutate(pred=dpois(0:max(max(epl_data$homegoals),max(epl_data$awaygoals)), 
+                      mean(epl_data$homegoals)), type="home") %>% rename(goals=homegoals),
+  epl_data %>% group_by(awaygoals) %>% summarize(actual=n()/nrow(.)) %>% 
+    mutate(pred=dpois(0:max(max(epl_data$homegoals),max(epl_data$awaygoals)),
+                      mean(epl_data$awaygoals)), type="away") %>% rename(goals=awaygoals))) %>%
+  mutate(type=factor(type, levels=c("home", "away"), labels = c("Home", "Away"))) %>%
+  ggplot(aes(x=as.factor(goals))) + 
+  geom_bar(aes(y=actual,fill=type),stat="identity",position="dodge") +
+  geom_line(aes(group=type, y = pred,color=type),size=1.25)  +
+  #  scale_fill_manual(values=c("#FFA07A", "#20B2AA"))  +
+  scale_fill_manual(values=c("#FFA07A", "#20B2AA"), 
+                    name = "Actual",
+                    guide = guide_legend(override.aes = list(linetype = c(0,1)))) +
+  scale_color_manual(values=c("#CD5C5C", "#006400"),
+                     name="Poisson")  +
+  ggtitle("Number of Goals per Match (EPL 2016/17 Season)")  + xlab("Goals per Match") + ylab("Proportion of Matches")
+```
+
+```{r}
+1 - ppois(1, lambda=lambdas$avg_home_goals, lower=TRUE)
+ppois(1, lambda=lambdas$avg_home_goals, lower=FALSE)   # upper tail 
+```
+
+```{r}
+g <- seq(0,max(epl_data$homegoals, epl_data$awaygoals))
+home_draw <- dpois(g, lambdas$avg_home_goals)
+away_draw <- dpois(g, lambdas$avg_away_goals)
+p_draw <- sum(home_draw*away_draw)
+p_draw
+```
+
+```{r}
+model_data <- rbind(data.frame(goals=epl_data$homegoals, team=epl_data$home, opponent=epl_data$away, home=1),
+  data.frame(goals=epl_data$awaygoals, team=epl_data$away, opponent=epl_data$home, home=0))
+
+model_data
+```
+
+```{r}
+pois_model <- glm(goals ~ home + team + opponent, family=poisson(link=log), data=model_data)
+summary(pois_model)
+```
+
+```{r}
+predict(pois_model, 
+        data.frame(home=1, team="Chelsea FC", 
+                   opponent="Liverpool FC"), type="response")
+
+predict(pois_model, 
+        data.frame(home=1, team="Liverpool FC", 
+                   opponent="Chelsea FC"), type="response")
+```
+
+```{r}
+epl_data %>% filter(home=="Liverpool FC")
+```
+
+```{r}
+preds <- epl_data %>% filter(home=="Liverpool FC") %>% 
+  mutate(predhomegoals=round(predict(pois_model, data.frame(home=1, team="Liverpool FC", opponent=away), type="response"),0),
+         predawaygoals=round(predict(pois_model, data.frame(home=0, team=away, opponent="Liverpool FC"), type="response"),0)) %>%
+  mutate(actualscore=paste0(homegoals,'-',awaygoals), predscore=paste0(predhomegoals,'-',predawaygoals)) %>% select(-c(homegoals:predawaygoals))
+preds
+```
+
+```{r}
+team <- "Huddersfield Town AFC"
+preds <- epl_data %>% filter(home==team) %>% 
+  mutate(predhomegoals=round(predict(pois_model, data.frame(home=1, team=team, opponent=away), type="response"),0),
+         predawaygoals=round(predict(pois_model, data.frame(home=0, team=away, opponent=team), type="response"),0)) %>%
+  mutate(actualscore=paste0(homegoals,'-',awaygoals), predscore=paste0(predhomegoals,'-',predawaygoals)) %>% select(-c(homegoals:predawaygoals))
+preds
+```
