@@ -102,6 +102,8 @@ ggplot(fresno_long %>% filter(METRIC == "PRCP"), aes(x=MONTH,y=VALUE,color=METRI
   ggtitle("Precipitation Monthly Distribution")
 ```
 
+
+
 ```{r}
 #data <- us_production %>% mutate(jun_rain=, )
 model_data <- cbind(us_production,
@@ -110,17 +112,42 @@ model_data <- cbind(us_production,
       )
 
 model_data2 <- cbind(us_production,
-      prcp %>% filter(!YEAR %in% c(2012,2013)) %>% replace(is.na(.), 0) %>% transmute(summerprcp=rowSums(.[7:10]), fallprcp=rowSums(.[11:13]), winterprcp=`01`+`02`+`03`, springprpc=rowSums(.[4:6])),
-      tmin %>% filter(!YEAR %in% c(2012,2013)) %>% replace(is.na(.), 0) %>% select(-c(YEAR,PRODUCTION))
+      prcp %>% filter(!YEAR %in% c(2012,2013)) %>% replace(is.na(.), 0) %>% transmute(summerprcp=rowSums(.[7:10]), fallprcp=rowSums(.[11:13]), winterprcp=`01`+`02`+`03`, springprpc=rowSums(.[4:6]))
       )
 
-#model_data2 <- model_data2 %>% mutate(across(where(is.logical), function (x) {as.factor(x*1)}))
+model_data <- model_data %>% mutate(across(where(is.logical), function (x) {as.factor(x*1)}))
 
 showtable(model_data2, title="Assembled Modeling Data")
 ```
 
 ```{r}
+showtable(model_data, title="Assembled Modeling Data")
+```
+
+
+```{r}
 lm.1 <- lm(PRODUCTION ~ ., data=model_data2 %>% select(-YEAR))
 summary(lm.1)
 ```
+
+```{r}
+model_data2 %>% 
+  select(-YEAR) %>%
+  gather() %>% 
+  ggplot(aes(x= value)) + 
+  geom_density(fill='pink') + 
+  facet_wrap(~key, scales = 'free')
+```
+
+```{r}
+model_data3 <- cbind(cbind(model_data, model_data2) %>% select(-c(YEAR,PRODUCTION)),PRODUCTION=model_data$PRODUCTION)
+lm.3 <- lm(PRODUCTION ~ . , data=model_data3 %>% select(-c(jun_rain, aug_rain, coldjan)))
+summary(lm.3)
+```
+
+```{r}
+model_data3
+```
+
+
 
