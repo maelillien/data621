@@ -1,20 +1,111 @@
 ---
-title: "template"
+title: "DATA621 Blog 5"
 author: "Mael Illien"
-date: "9/25/2019"
+date: "12/15/2020"
 output:
   html_document:
     toc: true
     toc_float: true
     theme: cerulean
     highlight: pygments
-    css: ./lab.css
 ---
+
+# Time Series Regression
+
+Time series introduce a challenge that violate the assumptions of most regression techniques, that the errors are independent. With time series, we deal with serially correlated errors. This means that the error in a predictor is related to a previous time value. In this exercise we are working with a time series of the water levels of Lake Huron and will try to model the relationship using simple regression as well as auto-regressive model using Generalized Least Squares.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-    * Generalized Least Squares
-    * Autoreggressive model
+```{r include=FALSE}
+library(tidyverse)
+library(skimr)
+library(ggcorrplot)
+library(caret)
+library(kableExtra)
+library(pROC)
+require(nlme)
+```
 
+## Data
+
+The data span from 1875 to 1972 and represents the water level of Lake Huron. At first sight, we see that the first half of the series is mostly governed by a downstrend. In the second half, both uptrends and downstrends are visible with a series of important spikes.
+
+```{r}
+data(LakeHuron)
+plot(LakeHuron)
+```
+
+### Auto-correlation
+
+The exponentially decaying nature of the auto-correlation function, or the correlation of the series with a lag of itself, suggests an AR(1) autoregressive model. 
+
+```{r}
+acf(LakeHuron)
+```
+
+### Simple Linear Regression
+
+We can use simple regression on the data by regressing the series at time $t$ on $t{-1}$. We need to drop the first and last values appropriately as these are end values without two neighbors. We see from the model output that `t_1` is significant and has a positive value. A plot of the regression line over the time series validates the linear relationship. 
+
+```{r}
+t <- LakeHuron[-1]
+t_1 <- LakeHuron[-length(LakeHuron)]
+LakeHuron.lm <- lm(t ~ t_1)
+summary(LakeHuron.lm)
+```
+```{r}
+plot(t_1, t)
+abline(LakeHuron.lm, col=3, lwd=2)
+```
+
+## Generalized Least Squares
+
+Unlike linear regression, in Generalized Least Squares the errors  are assumed to be normally distributed with mean equal to 0 and standard deviation equal to the correlated errors. 
+
+### AR(1)
+
+Interestingly, we find that the time effect is no longer significant. We suspect that there might be higher order terms that influence the model that could explain this.
+
+```{r}
+LH.gls <- gls(LakeHuron ~ time(LakeHuron), correlation = corAR1(form=~1))
+summary(LH.gls)$tTable
+```
+
+We compare results from the gls model to results using ARIMA (Auto Regressive Integrated Moving Average). Both the intercept and ar terms are different.
+
+```{r}
+LH.ar1 <- arima(LakeHuron, order = c(1, 0, 0))
+LH.ar1_fitted <- LakeHuron - residuals(LH.ar1)
+LH.ar1
+```
+
+### AR(2)
+
+Investigating our suspicion of higher order terms, we find that there actually is strong evidence for a negative second order term. Comparing the AR(2) models we now see a consistency in the estimates of the coefficients: AR (1st: 1.054, 2nd: -0.267), GLS (1st: 1.02, 2nd: -0.274), ARIMA (1st: 1.04, 2nd: -0.249)
+
+```{r}
+ar(LakeHuron)
+```
+
+
+```{r}
+LH.gls2 <- gls(LakeHuron ~ time(LakeHuron), correlation = corARMA(p=2))
+summary(LH.gls2)
+```
+
+```{r}
+LH.ar2 <- arima(LakeHuron, order = c(2, 0, 0))
+LH.ar2_fitted <- LakeHuron - residuals(LH.ar2)
+LH.ar2
+```
+
+We plot the fitted values of the ARIMA second order model alongside the original data and see that it is a close match. 
+
+```{r}
+plot(LakeHuron)
+points(LH.ar2_fitted, type = "l", col = 2, lty = 2)
+```
+
+This simplistic walkthrough of time series analysis shows how we can model AR(1) type models with simple regression but also through the use of libraries like `nlme` for `gls`. We compared model approaches and saw that adding a higher order terms might be necessary when simpler models are not statistically significant. We also saw how different modelling approach yield similar estimates for the coefficients. Forecasting would be the natural extension of this exercise to take it to the next level.  

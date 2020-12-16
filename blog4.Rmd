@@ -1,7 +1,7 @@
 ---
-title: "template"
+title: "DATA621 Blog 4"
 author: "Mael Illien"
-date: "11/30/2020"
+date: "12/15/2020"
 output:
   html_document:
     toc: true
@@ -15,9 +15,106 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-It is natural in finance and investing to try to predict the price of an asset on the following day. In order to do so, investors and traders can use a variety of tools such as fundamental analysis (based on company data), price action (based only on the price itself) and technical indicators like the Relative Strength Index (RSI) or the Moving Average Convergence Divergence (MACD), which are derived from price and/or volume data. The strategies derived from financial analysis can be applied to varying time scale horizons, short-term or long-term depending on the trader's risk apetite. 
+```{r include=FALSE}
+library(tidyverse)
+library(skimr)
+library(ggcorrplot)
+library(caret)
+library(kableExtra)
+library(pROC)
 
-In this post, we will look at a short term horizon and see if price and technical indicator values at time t can be used to predict a value at time t+1. With a logistic regression, we can model the probabilities of a price movement and predict whether the price will go up (1) or down (0).
+showtable <- function(data, title) {
+  kable(data, caption = title) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+}
+```
 
-Logistic regression explanation
+# Binary Logistic Regression
+
+Marketing campaigns can be expensive. Knowing which customers to target is essential in order to conduct an efficient campaign. Given information about a client, can we predict whether that client will respond positively to the product being marketed? In the case presented, the target variable (the client's response) is either yes or no. When trying to predict binary outcomes instead of continuous values, we must turn to an alternative regression techniques, namely logistic regression. The logistic regression calculates the probability of an observation belonging to the target class, which in this case is whether a bank customer will suscribe to a term deposit. The data is available from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Bank+Marketing).
+
+## Data
+
+The dataset is composed of 4521 observations, with 7 numeric variables and 10 character variables. The latter will have to be converted to factors instead of characters for use in regression analysis. Some of the independent variables are bank client data such as age, job, education or balance while others are related to the last contact with the current marketing campaign. There are no missing values and we proceed to take a look at the data distributions.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- read_delim('bank.csv',';', col_names = TRUE, )
+showtable(head(data,20),"")
+```
+
+```{r echo=FALSE}
+skim(data)
+```
+
+## Modeling
+
+As mentioned earlier, the categorical data needs to be manipulated into factors in order to be valid inputs for regression. We also mutate the response variable `y` from 'yes' and 'no' to 1 or 0. The data is fed into the `glm` function for generalized linear models which is appropriate for distributions belonging to the exponential family. We distinguish the family by and speficy the logit link function, which transforms the inputs into a sigmoid which is continuous and range bounded between 0 and 1. 
+
+```{r echo=FALSE}
+data <- data %>% mutate(across(where(is.character), as.factor)) %>% mutate(y=ifelse(y=='yes',1,0))
+```
+
+### Full model
+
+From the summary of the trained model, we observe a number of significant predictors with positive and negative coefficients: 
+
+* Positive: 
+  + poutcomesuccess: the outcome of previous succesfull campaigns is a sensible predictor for future success
+  + duration: this is actually not a valid variable because when launching a new campaign, the duration spent on the phone is not data that is available yet. 
+  + october, march: these variables are the last contact months which are difficult to interpret
+  + day: this variable is the day of the week of the last contact and also diffucult to interpret, and mistakenly treated as a continuous variable
+  + jobretired: this is a sensible predictor since retired people are older and are more responsive to add campaigns
+* Negative: 
+  + campaign: this is the number of contacts performed during the campaign and could imply that some customers get annoyed
+  + november, may, july, january: 
+  + contactunknown: this is the contact commucation type and it is surprising that unknown contacts are significant
+  + loanyes: it is understandable that people with outstanding loans would be less likely to sign up for additional products
+  + maritalmarried: married clients tend to sign up less
+
+```{r}
+glm.mod <- glm(y ~ ., data=data, family = binomial(link="logit")) 
+summary(glm.mod)
+```
+
+
+
+```{r echo=FALSE}
+glm.probs <- predict(glm.mod, type="response")
+glm.pred <- ifelse(glm.probs > 0.5, 1, 0)
+results <- tibble(target=data$y, pred=glm.pred)
+results <- results %>%
+    mutate(pred.class = as.factor(pred), target.class = as.factor(target))
+  
+print(confusionMatrix(results$pred.class,results$target.class, positive = "1"))
+```
+
+The model yields a high accuracy metric on the training data. However, it is worth comparing these results with a smaller model that does not use the variables that we outlined above as suspect. What we find is the the reduced model actually worse with an increase in AIC from 2260 to 2879.
+
+### Reduced model
+
+```{r}
+glm.mod2 <- glm(y ~ . - day - duration - contact - campaign, data=data, family = binomial(link="logit")) 
+summary(glm.mod2)
+```
+
+```{r echo=FALSE}
+glm.probs2 <- predict(glm.mod2, type="response")
+glm.pred2 <- ifelse(glm.probs2 > 0.5, 1, 0)
+results2 <- tibble(target=data$y, pred=glm.pred2)
+results2 <- results2 %>%
+    mutate(pred.class = as.factor(pred), target.class = as.factor(target))
+  
+print(confusionMatrix(results2$pred.class,results2$target.class, positive = "1"))
+```
+
+### ROC
+
+From the classification metrics, we see a minor difference in model accuracy between the full model (0.9051) and the reduced model (0.8923). Where the large difference between the models is the sensitivity metric (0.34165 vs 0.14971) which is also called the True Positive Rate, and represents the number of clients who were correctly predicted to have subscribed. This is ultimately an important scoring measure for this exercise. Finally, we see as illustrated  on the ROC plot above that the full model with Area Under Curve 0.903 is an overall better classifier than the reduced model with AUC 0.733. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+plot(roc(results$target.class,glm.probs), print.auc = TRUE, lty = 2, main = "ROC")
+plot(roc(results2$target.class,glm.probs2), print.auc = TRUE, add=TRUE, col='red', print.auc.y = .4)
+```
+
+This was a simple example of binary logistic regression used both for explanation and as a classifier. Note should be giving as we have pointed out earlier that some variables might not exist at the time of a new marketing campaign and therefore should not be considered in a robust model. A more robust model would also identify outliers and deal with any class imbalances likely present in the data
 

@@ -33,31 +33,23 @@ showtable <- function(data, title) {
 
 # Multiple Regression
 
-## Introduction 
-
 A paramount concern in agriculture is maximizing crop production and regression analysis can be used to assist in solving that problem in a number of ways. We can use it to answer questions such as:
-- What are the environmental and meteorological factors that influence crop yield?
-- Given meteorological and/or environmental/spatial information about a crop area during the ongoing growing season, can we predict the crop’s yield for that year?
-- Can we predict crop loss due to inclement weather?
+
+* What are the environmental and meteorological factors that influence crop yield?
+* Given meteorological and/or environmental/spatial information about a crop area during the ongoing growing season, can we predict the crop’s yield for that year?
+* Can we predict crop loss due to inclement weather?
 
 These questions can be answered using a multiple regression model with a continuous response variable (yield in unit qty) and a combination of continuous and discrete predictor variables. 
 
 From the variety of factors that may impact a crop’s yield, there are a number of sensible predictors that may affect yield such as:
-- Location (are particular regions of the world more or less productive). If you comparing countries, the overall crop area for production per country might also be useful.  
-- Low, average, high temperatures for individual months or growing periods (growth, bloom, seed)
-  - Can be used to derive binary variables such as: occurrence of frost or occurence of overheating
-- Precipitation data
-  - Can be used to determine the occurence of drought
+
+* Location (are particular regions of the world more or less productive). If you comparing countries, the overall crop area for production per country might also be useful.  
+* Low, average, high temperatures for individual months or growing periods (growth, bloom, seed)
+  + Can be used to derive binary variables such as: occurrence of frost or occurence of overheating
+* Low, average, high temperatures for individual months or growing periods (growth, bloom, seed)
+  + Can be used to determine the occurence of drought
 
 This situation lends itself to Linear Modeling using multiple regression with continuous and discrete variables
-- Explanation: 1 degree rise in temperature = 25% raise
-- Prediction: 
-
-```{r include=FALSE}
-# years <- seq(2000,2019,1)
-# avg_precipitation <- 
-# avg_temperature
-```
 
 The data below is gathered from multiple sources for illustrative purposes but does not form a coherent dataset.
 
@@ -65,7 +57,7 @@ The data below is gathered from multiple sources for illustrative purposes but d
 
 Below is a chart of the US production of a crop from 2014 to 2019. In this case the crop is raisins. We also acquired meteorological data from NOAA for Fresno Country in California which is an area where raisins are grown. 
 
-```{r include=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 year = c(2014,2015,2016,2017,2018,2019)
 production = c(368408,332211,352441,304723,241402,263000)
 us_production <- tibble(YEAR = year, PRODUCTION = production)
@@ -85,7 +77,7 @@ prcp <- fresno %>% select(YEAR, MONTH, PRCP) %>% spread(MONTH,PRCP) %>% left_joi
 fresno_long <- fresno %>% gather(key=METRIC, value=VALUE, PRCP:TMIN)
 ```
 
-```{r echo=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(us_production, aes(x=YEAR, y=PRODUCTION)) + 
   geom_col() + 
   ggtitle("US Production (tons)") + 
@@ -94,7 +86,7 @@ ggplot(us_production, aes(x=YEAR, y=PRODUCTION)) +
 
 The plots below show how the data is distributed for temperature and precipation over the months of a year. We notice a few outliers in both temperature and precipitation which could be investigated further to determine if the yield that year was particularly affected. 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(fresno_long %>% filter(METRIC != "PRCP"), aes(x=MONTH,y=VALUE,color=METRIC)) + 
   geom_boxplot() +
   ggtitle("Temperature Monthly Distribution")
@@ -108,7 +100,7 @@ ggplot(fresno_long %>% filter(METRIC == "PRCP"), aes(x=MONTH,y=VALUE,color=METRI
 
 We manipulate the data to create features which might be of interest. Continuous variables are created for seasonal precipitation and discrete variables for using both precipitation and temperature data. However we note that some of the discrete variables have only one level and provide no useful additional data. There should be removed before from the dataset being fed to the model.  
 
-```{r}
+```{r echo=FALSE}
 model_data <- cbind(us_production,
       prcp %>% filter(!YEAR %in% c(2012,2013)) %>% replace(is.na(.), 0) %>% transmute(yearlyprcp=rowSums(.[2:13]), jun_rain=`06`>0, jul_rain=`07`>0, aug_rain=`08`>0, wetwinter=`12`+`01`>5, drywinter=`12`+`01`<3),
       tmin %>% filter(!YEAR %in% c(2012,2013)) %>% transmute(colddec=`12` < 35, coldjan=`01` < 35) %>% replace(is.na(.), FALSE)
@@ -120,29 +112,24 @@ model_data2 <- cbind(us_production,
 
 model_data <- model_data %>% mutate(across(where(is.logical), function (x) {as.factor(x*1)}))
 
-showtable(model_data2, title="Assembled Modeling Data")
-```
+model_data3 <- cbind(cbind(model_data, model_data2) %>% select(-c(YEAR,PRODUCTION)),PRODUCTION=model_data$PRODUCTION)
 
-```{r}
-showtable(model_data, title="Assembled Modeling Data")
+showtable(model_data3, title="Assembled Dataset")
 ```
 
 ### Modeling
 
-This modeling attempt is restricted to the continuous variables only and unfortunately, the model is not significant. This could be due to a number of factors such as:
-1. The size of the dataset
-2. The nature of the dataset
-3. Functional form
-4. Transformations.
-
-These are things to consider
+This modeling attempt is restricted to the continuous variables only and unfortunately, the model is not significant so we cannot draw any conclusions from it. This could be due to a number of factors such as the size of the dataset, the nature of the dataset (innapropriate link/proxy between US production and Fresno county), functional form of the model, or innapropraite varibale distributions requiring transformations. Further effort could be put into compiling a more precise data set using local production numbers instead. This exercise could be aided with domain knowledge of agricultural prudction. 
 
 ```{r}
 lm.1 <- lm(PRODUCTION ~ ., data=model_data2 %>% select(-YEAR))
 summary(lm.1)
 ```
 
-```{r}
+The distributions of the continuous variables are not normal and while transformations might help, it would be more useful to gather more data. With significant coefficients, we could have explained phenomenons like the increase of 1mm of rain in a season the impact on yield in tons. If possible, this would be a powerful tool. 
+
+
+```{r echo=FALSE}
 model_data2 %>% 
   select(-YEAR) %>%
   gather() %>% 
@@ -151,10 +138,7 @@ model_data2 %>%
   facet_wrap(~key, scales = 'free')
 ```
 
-```{r}
-model_data3 <- cbind(cbind(model_data, model_data2) %>% select(-c(YEAR,PRODUCTION)),PRODUCTION=model_data$PRODUCTION)
-model_data3
-```
+
 
 
 

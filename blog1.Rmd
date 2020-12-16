@@ -16,8 +16,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Simple Linear Regression
 
-## Introduction 
-
 One of the most important aspects of the design of a construction project is the budget. When assembling a budget, cost estimates for the major trade are often provided by contractors based on the information available. Estimating these costs involves extracting quantities of materials from plans and determining how many manhours are required to build. This is a detailed exercise and a time consuming process that requires outside information (contractor pricing). For this reason, a linear regression model might be a very useful tool in predicting the budget for a new building using information from previous projects.
 
 Given that a number of trade costs can be broken down to a price per unit per trade, for example `$x/square foot` of concrete or `$y/apartment` for electrical wiring, it seems natural to turn to linear regression to predict the cost of a construction project based on these variables. While, the predictors can be detailed and derived for each trade (superstucture, mechanical, plumbing, etc.), it may be time-saving to use more general predictors for the project such as building area in SF, landscape area in SF, facade area in SF number of apartments, number of rooms, average area footprint of a floor etc.
@@ -47,18 +45,18 @@ showtable <- function(data, title) {
 costreport <- read_csv("costreportsummary.csv") %>% select(-X1)
 ```
 
-```{r}
+```{r echo=FALSE}
 data <- costreport %>% select(gea:totaltradecost)
 data <- data[1:16,] 
 
 showtable(data, title="")
 ```
 
-```{r data_summary_train, message=FALSE, warning=FALSE}
+```{r data_summary_train, echo=FALSE, message=FALSE, warning=FALSE}
 skim(data)
 ```
 
-```{r variables_distribution, fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
+```{r variables_distribution, echo=FALSE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
 data %>% 
   select(-totalprojectcost) %>%
   gather() %>% 
